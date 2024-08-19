@@ -1,0 +1,45 @@
+library('dplyr')
+library('ggplot2')
+
+getwd()
+setwd("C:/directory_route")
+getwd()
+
+# 분석 결과 파일 불러오기
+all_results <- read.table('all_results.txt', header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+# 데이터 프레임 확인 및 형 변환
+if (!is.data.frame(all_results)) {
+  all_results <- as.data.frame(all_results)
+}
+
+# 'coef' 열을 숫자형으로 변환
+all_results$coef <- as.numeric(all_results$coef)
+
+# 상위 10개의 coefficient 값을 가진 taxonomy features 추출
+top_features <- all_results %>%
+  arrange(desc(abs(coef))) %>%
+  head(30)
+
+# 상위 10개의 features 확인
+print(top_features)
+
+# 상위 10개의 결과를 TSV 파일로 저장
+write.table(top_features, "C:/directory_route/output/top_features.tsv", sep = "\t", row.names = FALSE)
+
+# 막대 그래프 시각화
+ggplot(top_features, aes(x = reorder(feature, abs(coef)), y = coef, fill = coef > 0)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Top 30 Taxonomy Features with Highest Coefficient",
+       x = "Feature",
+       y = "Coefficient",
+       fill = "Direction") +
+  scale_fill_manual(values = c("TRUE" = "lightblue", "FALSE" = "tomato"),
+                    labels = c("TRUE" = "Control", "FALSE" = "BC")) +
+  theme(panel.background = element_rect(fill = rgb(1, 1, 1, 0))) +
+
+  ggsave("plot_with_transparent_background.png", 
+                 bg = "transparent")
+
+  theme_minimal()
