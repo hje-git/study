@@ -1,0 +1,77 @@
+library(vegan)
+library(ggpubr)
+library(reshape2)
+library(ggsci)
+library(phyloseq)
+library(ggplot2)
+library(permute)
+library(lattice)
+library(tidyverse)
+library(dplyr)
+options(stringsAsFactors=F)
+
+rm(list=ls())
+
+getwd()
+
+
+df <- read.table("abundance_microbiome.txt", sep="\t", header=TRUE)
+row.names(df) <- df[,1]
+df <- df[,-1]
+
+dataT <- na.omit(as.data.frame(df))
+
+dist <- vegdist(dataT, method="bray")
+dist <- as.matrix(dist)
+adist <- as.dist(dist)
+
+
+sd <- read.table("metadata_microbiome.txt", sep="\t", header=TRUE)
+rownames(sd) <- as.character(sd[,1])
+
+sd$Group <- factor(sd$Group, levels = c(0, 1), labels = c("Control", "Cancer"))
+colnames(sd)[1:2] <- c("Sample", "Group")
+
+
+# PCoA 분석
+pc_num <- c(1,2)
+pcoa <- cmdscale(dist, k=3, eig=TRUE)
+pc12 <- as.data.frame(pcoa$points[, pc_num])
+colnames(pc12) <- c("pc_x", "pc_y")
+pc12['Sample'] <- rownames(pc12)
+pc <- round(pcoa$eig / sum(pcoa$eig) * 100, digits = 2)
+pc12 <- merge(pc12, sd, by="Sample")
+
+pc12$Relapse <- factor(pc12$Relapse, levels = unique(sd$Relapse))
+
+
+
+# 그룹별 평균 계산
+pc_aver <- pc12 %>%
+  dplyr::select(-Sample) %>%
+  group_by(Relapse) %>%
+  summarise(across(everything(), mean))
+
+
+# 시각화
+mycols <- c("#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#ffff33", "#a65628", "#f781bf", "#999999")
+
+                                                                   
+p1 <- ggplot(pc12, aes(x = pc_x, y = pc_y, color = Relapse, fill = Relapse, shape = Relapse)) +
+  geom_point(size = 3, alpha = 1) +
+  ylab(paste0("PCoA", pc_num[2], "(", round(pc[pc_num[2]], 2), "%)")) +
+  xlab(paste0("PCoA", pc_num[1], "(", round(pc[pc_num[1]], 2), "%)")) +
+  scale_shape_manual(values = rep(21, length(levels(pc12$Relapse))), guide = "none") +
+  scale_color_manual(values = mycols, labels = c("Control", "Relapse")) +
+  scale_fill_manual(values = mycols, labels = c("Control", "Relapse"), guide = "none") +
+  labs(color = "Group") +  # 레전드 제목 변경
+  theme(
+    legend.position = "right",
+    panel.border = element_rect(color = "black", linewidth = 1.0, fill = NA),
+    text = element_text(size = 24)
+  )
+
+print(p1)
+
+ggsave('pcoa_abundance.pdf', plot = p1, width = 10, height = 8)
+
