@@ -1,0 +1,38 @@
+# PERMANOVA 구동
+
+library(vegan)
+library(ggpubr)
+library(reshape2)
+library(ggsci)
+library ("phyloseq")
+library(permute)
+library(lattice)
+library(vegan) 
+library(tidyverse)  
+library(dplyr)
+options(stringsAsFactors=F)
+
+getwd()
+setwd("C:/directory_route")
+getwd()
+
+rm(list=ls())
+
+df=read.table("abundance_microbiome.txt", sep="\t",header=TRUE)
+sd <- read.table("metadata_microbiome.txt", sep="\t",header=TRUE)
+
+data<-inner_join(df, sd, by="SampleID")
+
+site = data.frame(sample = data$SampleID,
+                  Group = data$Group)
+
+row.names(data)<-data[,1]
+data=data[,-1]
+data<-subset(data,select=-c(Group))
+
+dist <- vegdist(data, method="bray")
+site <- data.frame(group = sd$Group)
+
+adonis2_result_dis = adonis2(dist~group, site, permutations = 999)
+
+print(adonis2_result_dis)
